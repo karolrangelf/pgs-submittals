@@ -1,186 +1,156 @@
 import streamlit as st
 
-st.set_page_config(
-    page_title="PGS submittals setup form",
-    page_icon="📄",
-    layout="centered"
-)
+# ============================
+# BACKGROUND IMAGE
+# ============================
 
-# --- CSS SUAVE: solo margenes, no cambia tamaños base ---
-st.markdown("""
+background_url = "https://raw.githubusercontent.com/karolrangelf/pgs-submittals/main/background.png"
+
+st.markdown(
+    f"""
     <style>
-    /* Reducir un poco el espacio debajo de los h4 (####) */
-    h4 {
-        margin-bottom: 6px !important;
-        margin-top: 22px !important;
-    }
+    .stApp {{
+        background-image: url("{background_url}");
+        background-size: cover;
+        background-attachment: fixed;
+        background-position: center;
+    }}
 
-    /* Ajustar espacio vertical entre grupos de radio buttons */
-    div.stRadio > div {
-        gap: 0.3rem !important;
-        margin-top: -4px !important;
-        margin-bottom: -4px !important;
-    }
+    /* Form styling */
+    .section-title {{
+        font-size: 1.35rem;
+        font-weight: 600;
+        margin-top: 1.5rem;
+        margin-bottom: .5rem;
+    }}
+
+    /* tab buttons */
+    .stTabs [data-baseweb="tab"] {{
+        font-size: 1.1rem !important;
+        font-weight: 600 !important;
+        padding-top: 0.6rem !important;
+        padding-bottom: 0.6rem !important;
+    }}
+
+    /* remove excessive spacing under radio/dropdowns */
+    div[data-testid="stRadio"] > label, 
+    div[data-testid="stSelectbox"] > label {{
+        margin-bottom: 0.1rem !important;
+    }}
     </style>
-""", unsafe_allow_html=True)
+    """,
+    unsafe_allow_html=True
+)
 
-# --------- TAB-STYLE HEADER PARA UMS / UPSOLUT ---------
-def system_banner(title: str):
-    st.markdown(
-        f"""
-        <div style="
-            margin: 28px 0 14px 0;
-            text-align: center;
-        ">
-            <span style="
-                background-color: #f6f7fb;
-                padding: 8px 28px;
-                border-radius: 6px;
-                border: 1px solid #e1e3ee;
-                font-size: 20px;
-                font-weight: 600;
-                display: inline-block;
-            ">
-                {title}
-            </span>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+# ============================
+# PAGE CONFIG
+# ============================
 
-# -------------------- TÍTULO PRINCIPAL --------------------
+st.set_page_config(page_title="PGS submittals setup form", layout="centered")
+
 st.title("PGS submittals setup form")
-st.caption(
-    "This preview shows only the questions as they would appear in the web app. "
-    "No logic or file handling yet."
-)
+st.caption("This preview shows only how the questions would appear in the web app. No logic or file handling yet.")
 
-# -------------------- COVERED SPACES --------------------
-st.subheader("Covered spaces")
+# ============================
+# STEP 0 – COVERED SPACES
+# ============================
 
-covered = st.radio(
-    "",
-    ["Yes", "No"],
-    index=None,
-    horizontal=True,
-    key="covered_parking",
-)
-
-if covered is None:
-    st.stop()
+st.markdown("<div class='section-title'>Covered spaces</div>", unsafe_allow_html=True)
+covered = st.radio(" ", ["Yes", "No"], horizontal=True)
 
 if covered == "No":
-    st.info("No covered spaces – hardware block is skipped.")
+    st.info("No covered spaces → hardware section will be skipped.")
     st.stop()
 
-# -------------------- SYSTEMS INCLUDED --------------------
-st.subheader("Systems included in the project")
+# ============================
+# STEP 1 – SYSTEM SELECTION
+# ============================
+
+st.markdown("<div class='section-title'>Systems included in the project</div>", unsafe_allow_html=True)
 
 systems = st.multiselect(
     "",
-    ["UMS", "UPSOLUT"],
-    key="systems",
+    ["UMS", "Upsolut"],
 )
 
-if not systems:
-    st.info("Select at least one system to continue.")
+if len(systems) == 0:
     st.stop()
 
-# -------------------- UMS SECTION --------------------
-if "UMS" in systems:
+# ============================
+# SYSTEM TABS
+# ============================
 
-    system_banner("UMS")
+st.markdown("<div class='section-title'>Hardware details per system</div>", unsafe_allow_html=True)
 
-    # LED type
-    st.markdown("#### LED type")
-    ums_led = st.radio(
-        "",
-        ["Internal", "External"],
-        horizontal=True,
-        key="ums_led",
-    )
+tab1, tab2 = st.tabs(["UMS", "Upsolut"])
 
-    # Installation type
-    st.markdown("#### Installation type")
-    ums_install = st.radio(
-        "",
-        ["C-channel", "Embedded", "Conduit"],
-        horizontal=False,
-        key="ums_install",
-    )
+# ---- UMS TAB ----
+with tab1:
 
-    # Embedded sub-options
-    if ums_install == "Embedded":
-        st.markdown("#### Embedded installation type")
-        ums_embedded = st.radio(
-            "",
-            ["Direct ceiling", "Suspended"],
-            horizontal=True,
-            key="ums_embedded",
-        )
-
-    # Conduit sub-options
-    if ums_install == "Conduit":
-        st.markdown("#### Conduit installation type")
-        ums_conduit = st.radio(
-            "",
-            ["Direct ceiling", "Suspended"],
-            horizontal=True,
-            key="ums_conduit",
-        )
-
-    # COMO / POSU requirement
-    st.markdown("#### COMO / POSU requirement (UMS only)")
-    ums_posu_excluded = st.checkbox(
-        "POSU is NOT required for this project (only COMO will be included).",
-        key="ums_exclude_posu",
-    )
-
-    if ums_posu_excluded:
-        st.info("Only COMO spec will be included for this UMS project. POSU will be excluded.")
+    if "UMS" not in systems:
+        st.info("UMS is not selected in this project.")
     else:
-        st.info("Default behavior: COMO and POSU specs will be included for this UMS project.")
 
-# -------------------- UPSOLUT SECTION --------------------
-if "UPSOLUT" in systems:
-
-    system_banner("UPSOLUT")
-
-    # LED type
-    st.markdown("#### LED type")
-    up_led = st.radio(
-        "",
-        ["Internal", "External"],
-        horizontal=True,
-        key="up_led",
-    )
-
-    # Installation type
-    st.markdown("#### Installation type")
-    up_install = st.radio(
-        "",
-        ["C-channel", "Embedded", "Conduit"],
-        horizontal=False,
-        key="up_install",
-    )
-
-    if up_install == "Embedded":
-        st.markdown("#### Embedded installation type")
-        up_embedded = st.radio(
+        st.markdown("<div class='section-title'>LED type</div>", unsafe_allow_html=True)
+        ums_led = st.radio(
             "",
-            ["Direct ceiling", "Suspended"],
-            horizontal=True,
-            key="up_embedded",
+            ["Internal", "External"],
+            horizontal=True
         )
 
-    if up_install == "Conduit":
-        st.markdown("#### Conduit installation type")
-        up_conduit = st.radio(
+        st.markdown("<div class='section-title'>Installation type</div>", unsafe_allow_html=True)
+        ums_install = st.radio(
             "",
-            ["Direct ceiling", "Suspended"],
-            horizontal=True,
-            key="up_conduit",
+            ["C-channel", "Embedded", "Conduit"]
         )
 
-st.divider()
+        # Embedded / Conduit sub-options
+        if ums_install == "Embedded":
+            st.markdown("<div class='section-title'>Embedded installation type</div>", unsafe_allow_html=True)
+            ums_emb = st.radio("", ["Direct ceiling", "Suspended"])
+
+        if ums_install == "Conduit":
+            st.markdown("<div class='section-title'>Conduit installation type</div>", unsafe_allow_html=True)
+            ums_cond = st.radio("", ["Direct ceiling", "Suspended"])
+
+        # COMO/POSU
+        st.markdown("<div class='section-title'>COMO / POSU requirement (UMS only)</div>", unsafe_allow_html=True)
+        remove_posu = st.checkbox("POSU is NOT required for this project (only COMO will be included).")
+
+        if remove_posu:
+            st.info("Only COMO spec will be included for this UMS project. POSU will be excluded.")
+        else:
+            st.info("Default behavior: COMO and POSU specs will be included for this UMS project.")
+
+# ---- UPSOLUT TAB ----
+with tab2:
+
+    if "Upsolut" not in systems:
+        st.info("Upsolut is not selected in this project.")
+    else:
+
+        st.markdown("<div class='section-title'>LED type</div>", unsafe_allow_html=True)
+        up_led = st.radio(
+            "",
+            ["Internal", "External"],
+            horizontal=True
+        )
+
+        st.markdown("<div class='section-title'>Installation type</div>", unsafe_allow_html=True)
+        up_install = st.radio(
+            "",
+            ["C-channel", "Embedded", "Conduit"]
+        )
+
+        if up_install == "Embedded":
+            st.markdown("<div class='section-title'>Embedded installation type</div>", unsafe_allow_html=True)
+            up_emb = st.radio("", ["Direct ceiling", "Suspended"])
+
+        if up_install == "Conduit":
+            st.markdown("<div class='section-title'>Conduit installation type</div>", unsafe_allow_html=True)
+            up_cond = st.radio("", ["Direct ceiling", "Suspended"])
+
+
+# Divider
+st.markdown("---")
 st.caption("© PGS – internal UI prototype for visual review only.")
