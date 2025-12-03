@@ -27,7 +27,6 @@ def set_bg(png_file):
     }}
 
     /* ---------------------- AGUAMARINA ---------------------- */
-    /* Chips del multiselect */
     div[data-baseweb="tag"] {{
         background-color: #69F2C4 !important;
         color: black !important;
@@ -35,26 +34,34 @@ def set_bg(png_file):
         font-weight: 600 !important;
     }}
 
-    /* X del chip */
     div[data-baseweb="tag"] svg {{
         fill: black !important;
     }}
 
-    /* Pepitas (radios y checkboxes) */
     input[type="radio"], input[type="checkbox"] {{
         accent-color: #69F2C4 !important;
     }}
 
-    /* Dropdown border (cuando está activo) */
     .stSelectbox:focus-within, .stMultiSelect:focus-within {{
         border-color: #69F2C4 !important;
         box-shadow: 0 0 0 2px #69F2C4 !important;
     }}
 
-    /* Placeholder siempre blanco */
     .stTextInput input::placeholder,
     .stSelectbox div[data-baseweb="select"] div {{
         color: #ffffff !important;
+    }}
+
+    /* ---------------------- NUEVO: TEXTOS BLANCOS ---------------------- */
+
+    /* Etiquetas de radios, checkboxes y selects */
+    .stRadio label, .stCheckbox label, .stSelectbox label, label {{
+        color: white !important;
+    }}
+
+    /* Opciones dentro del dropdown */
+    div[role="listbox"] div {{
+        color: white !important;
     }}
 
     /* ---------------------- FUENTES ---------------------- */
@@ -78,18 +85,14 @@ def set_bg(png_file):
 
 set_bg("background.png")
 
-
 # =====================================================
 # HEADER
 # =====================================================
-
 st.markdown("<h1 class='pgs-title'>PGS Submittals Setup Form</h1>", unsafe_allow_html=True)
-
 
 # =====================================================
 # FORM CONTENT
 # =====================================================
-
 st.markdown("### Covered spaces")
 covered = st.radio(
     "Does this project include covered parking?",
@@ -180,7 +183,6 @@ if covered == "Yes":
 
 else:
     st.info("No covered spaces selected. Hardware section is skipped.")
-
 
 st.markdown("---")
 st.caption("© PGS – internal UI prototype for visual review only.")
