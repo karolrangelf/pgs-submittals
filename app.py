@@ -1,156 +1,186 @@
 import streamlit as st
+import base64
+from pathlib import Path
 
-# ============================
+# =====================================================
+# PAGE CONFIG
+# =====================================================
+st.set_page_config(page_title="PGS submittals setup form", layout="centered")
+
+# =====================================================
 # BACKGROUND IMAGE
-# ============================
+# =====================================================
+def set_bg(png_file):
+    file_path = Path(png_file)
+    with open(file_path, "rb") as f:
+        data = f.read()
+    encoded = base64.b64encode(data).decode()
 
-background_url = "https://raw.githubusercontent.com/karolrangelf/pgs-submittals/main/background.png"
-
-st.markdown(
-    f"""
+    css = f"""
     <style>
     .stApp {{
-        background-image: url("{background_url}");
+        background-image: url("data:image/png;base64,{encoded}");
         background-size: cover;
         background-attachment: fixed;
         background-position: center;
+        color: white !important;
     }}
 
-    /* Form styling */
-    .section-title {{
-        font-size: 1.35rem;
-        font-weight: 600;
-        margin-top: 1.5rem;
-        margin-bottom: .5rem;
-    }}
-
-    /* tab buttons */
-    .stTabs [data-baseweb="tab"] {{
-        font-size: 1.1rem !important;
+    /* ---------------------- AGUAMARINA ---------------------- */
+    /* Chips del multiselect */
+    div[data-baseweb="tag"] {{
+        background-color: #69F2C4 !important;
+        color: black !important;
+        border-radius: 6px !important;
         font-weight: 600 !important;
-        padding-top: 0.6rem !important;
-        padding-bottom: 0.6rem !important;
     }}
 
-    /* remove excessive spacing under radio/dropdowns */
-    div[data-testid="stRadio"] > label, 
-    div[data-testid="stSelectbox"] > label {{
-        margin-bottom: 0.1rem !important;
+    /* X del chip */
+    div[data-baseweb="tag"] svg {{
+        fill: black !important;
+    }}
+
+    /* Pepitas (radios y checkboxes) */
+    input[type="radio"], input[type="checkbox"] {{
+        accent-color: #69F2C4 !important;
+    }}
+
+    /* Dropdown border (cuando está activo) */
+    .stSelectbox:focus-within, .stMultiSelect:focus-within {{
+        border-color: #69F2C4 !important;
+        box-shadow: 0 0 0 2px #69F2C4 !important;
+    }}
+
+    /* Placeholder siempre blanco */
+    .stTextInput input::placeholder,
+    .stSelectbox div[data-baseweb="select"] div {{
+        color: #ffffff !important;
+    }}
+
+    /* ---------------------- FUENTES ---------------------- */
+    @import url('https://fonts.googleapis.com/css2?family=Oswald:wght@500;700&display=swap');
+
+    .pgs-title {{
+        font-family: 'Oswald', sans-serif;
+        font-size: 72px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+        color: white;
+        width: 100%;
+        text-align: center;
+        margin-top: 20px;
+        margin-bottom: 10px;
     }}
     </style>
-    """,
-    unsafe_allow_html=True
+    """
+    st.markdown(css, unsafe_allow_html=True)
+
+set_bg("background.png")
+
+
+# =====================================================
+# HEADER
+# =====================================================
+
+st.markdown("<h1 class='pgs-title'>PGS Submittals Setup Form</h1>", unsafe_allow_html=True)
+
+
+# =====================================================
+# FORM CONTENT
+# =====================================================
+
+st.markdown("### Covered spaces")
+covered = st.radio(
+    "Does this project include covered parking?",
+    ["Yes", "No"],
+    horizontal=True,
+    key="covered"
 )
 
-# ============================
-# PAGE CONFIG
-# ============================
+if covered == "Yes":
 
-st.set_page_config(page_title="PGS submittals setup form", layout="centered")
+    st.markdown("### Systems included in the project")
+    systems = st.multiselect(
+        "Select systems",
+        ["UMS", "Upsolut"],
+        placeholder="Select systems",
+        key="systems"
+    )
 
-st.title("PGS submittals setup form")
-st.caption("This preview shows only how the questions would appear in the web app. No logic or file handling yet.")
+    # ----------------- UMS -----------------
+    if "UMS" in systems:
+        st.markdown("## UMS")
 
-# ============================
-# STEP 0 – COVERED SPACES
-# ============================
-
-st.markdown("<div class='section-title'>Covered spaces</div>", unsafe_allow_html=True)
-covered = st.radio(" ", ["Yes", "No"], horizontal=True)
-
-if covered == "No":
-    st.info("No covered spaces → hardware section will be skipped.")
-    st.stop()
-
-# ============================
-# STEP 1 – SYSTEM SELECTION
-# ============================
-
-st.markdown("<div class='section-title'>Systems included in the project</div>", unsafe_allow_html=True)
-
-systems = st.multiselect(
-    "",
-    ["UMS", "Upsolut"],
-)
-
-if len(systems) == 0:
-    st.stop()
-
-# ============================
-# SYSTEM TABS
-# ============================
-
-st.markdown("<div class='section-title'>Hardware details per system</div>", unsafe_allow_html=True)
-
-tab1, tab2 = st.tabs(["UMS", "Upsolut"])
-
-# ---- UMS TAB ----
-with tab1:
-
-    if "UMS" not in systems:
-        st.info("UMS is not selected in this project.")
-    else:
-
-        st.markdown("<div class='section-title'>LED type</div>", unsafe_allow_html=True)
+        st.markdown("#### LED type")
         ums_led = st.radio(
             "",
             ["Internal", "External"],
-            horizontal=True
+            horizontal=True,
+            key="ums_led"
         )
 
-        st.markdown("<div class='section-title'>Installation type</div>", unsafe_allow_html=True)
+        st.markdown("#### Installation type")
         ums_install = st.radio(
             "",
-            ["C-channel", "Embedded", "Conduit"]
+            ["C-channel", "Embedded", "Conduit"],
+            key="ums_install"
         )
 
-        # Embedded / Conduit sub-options
         if ums_install == "Embedded":
-            st.markdown("<div class='section-title'>Embedded installation type</div>", unsafe_allow_html=True)
-            ums_emb = st.radio("", ["Direct ceiling", "Suspended"])
+            st.markdown("##### Embedded installation type")
+            ums_embedded = st.radio(
+                "",
+                ["Direct ceiling", "Suspended"],
+                key="ums_embedded"
+            )
 
         if ums_install == "Conduit":
-            st.markdown("<div class='section-title'>Conduit installation type</div>", unsafe_allow_html=True)
-            ums_cond = st.radio("", ["Direct ceiling", "Suspended"])
+            st.markdown("##### Conduit installation type")
+            ums_conduit = st.radio(
+                "",
+                ["Direct ceiling", "Suspended"],
+                key="ums_conduit"
+            )
 
-        # COMO/POSU
-        st.markdown("<div class='section-title'>COMO / POSU requirement (UMS only)</div>", unsafe_allow_html=True)
-        remove_posu = st.checkbox("POSU is NOT required for this project (only COMO will be included).")
+    # ----------------- UPSOLUT -----------------
+    if "Upsolut" in systems:
+        st.markdown("## Upsolut")
 
-        if remove_posu:
-            st.info("Only COMO spec will be included for this UMS project. POSU will be excluded.")
-        else:
-            st.info("Default behavior: COMO and POSU specs will be included for this UMS project.")
-
-# ---- UPSOLUT TAB ----
-with tab2:
-
-    if "Upsolut" not in systems:
-        st.info("Upsolut is not selected in this project.")
-    else:
-
-        st.markdown("<div class='section-title'>LED type</div>", unsafe_allow_html=True)
+        st.markdown("#### LED type")
         up_led = st.radio(
             "",
             ["Internal", "External"],
-            horizontal=True
+            horizontal=True,
+            key="up_led"
         )
 
-        st.markdown("<div class='section-title'>Installation type</div>", unsafe_allow_html=True)
+        st.markdown("#### Installation type")
         up_install = st.radio(
             "",
-            ["C-channel", "Embedded", "Conduit"]
+            ["C-channel", "Embedded", "Conduit"],
+            key="up_install"
         )
 
         if up_install == "Embedded":
-            st.markdown("<div class='section-title'>Embedded installation type</div>", unsafe_allow_html=True)
-            up_emb = st.radio("", ["Direct ceiling", "Suspended"])
+            st.markdown("##### Embedded installation type")
+            up_emb = st.radio(
+                "",
+                ["Direct ceiling", "Suspended"],
+                key="up_emb"
+            )
 
         if up_install == "Conduit":
-            st.markdown("<div class='section-title'>Conduit installation type</div>", unsafe_allow_html=True)
-            up_cond = st.radio("", ["Direct ceiling", "Suspended"])
+            st.markdown("##### Conduit installation type")
+            up_cond = st.radio(
+                "",
+                ["Direct ceiling", "Suspended"],
+                key="up_cond"
+            )
+
+else:
+    st.info("No covered spaces selected. Hardware section is skipped.")
 
 
-# Divider
 st.markdown("---")
 st.caption("© PGS – internal UI prototype for visual review only.")
