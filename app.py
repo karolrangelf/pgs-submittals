@@ -1,9 +1,9 @@
 import streamlit as st
 from datetime import date
-from docxtpl import DocxTemplate, InlineImage
-from docx.shared import Mm
-from docx2pdf import convert
-import os
+from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import letter
+from reportlab.lib.utils import ImageReader
+import io
 
 # =====================================================
 # PAGE CONFIG
@@ -24,18 +24,83 @@ def go_to_page(page_number: int):
 
 
 # =====================================================
-# TEMPLATE PATH (YOUR DRIVE FILE)
+# PDF GENERATOR – COVER PAGE
 # =====================================================
-TEMPLATE_PATH = r"G:\My Drive\Submittals_test_KR\PGS_CoverPage_Template.docx"
+def generate_cover_pdf(project_name: str, date_str: str, logo_file):
+    """
+    Genera un PDF de portada usando CoverTemplate.png como fondo
+    y colocando:
+      - project_name centrado debajo de 'Project:'
+      - date_str centrado más abajo en el círculo
+      - logo opcional en un cuadro de 2"x2" en la esquina inferior derecha
+    """
+    buffer = io.BytesIO()
+    c = canvas.Canvas(buffer, pagesize=letter)
+
+    # Página tamaño carta: 612 x 792 puntos
+    page_width, page_height = letter  # (612, 792)
+
+    # Fondo (tu diseño de Canva)
+    bg = ImageReader("CoverTemplate.png")
+    c.drawImage(bg, 0, 0, width=page_width, height=page_height)
+
+    # ===============================
+    #   PROJECT NAME (texto dinámico)
+    # ===============================
+    c.setFont("Helvetica", 14)
+    c.setFillColorRGB(0, 0, 0)  # negro
+
+    # Coordenadas aproximadas debajo de "Project:" según tu plantilla
+    project_y = 430  # puedes ajustar fino si quieres
+    c.drawCentredString(page_width / 2, project_y, project_name)
+
+    # ===============================
+    #   DATE (texto dinámico)
+    # ===============================
+    if date_str:
+        c.setFont("Helvetica", 12)
+        date_y = 310   # posición baja del círculo según la plantilla
+        c.drawCentredString(page_width / 2, date_y, date_str)
+
+    # ===============================
+    #   CLIENT LOGO (si existe)
+    # ===============================
+    if logo_file is not None:
+        logo = ImageReader(logo_file)
+
+        # Tamaño del cuadro: 2" x 2" → 144 x 144 puntos
+        logo_w = 144
+        logo_h = 144
+
+        # Posición inferior derecha con pequeño margen
+        logo_x = page_width - logo_w - 30
+        logo_y = 30
+
+        c.drawImage(
+            logo,
+            logo_x,
+            logo_y,
+            width=logo_w,
+            height=logo_h,
+            preserveAspectRatio=True,
+            mask='auto'
+        )
+
+    c.showPage()
+    c.save()
+    buffer.seek(0)
+    return buffer
 
 
 # =====================================================
 # COMPLETION CHECKS
 # =====================================================
 def is_section0_completed() -> bool:
-    if not st.session_state.get("project_name"):
+    project_name = st.session_state.get("project_name")
+    pm = st.session_state.get("project_manager")
+    if not project_name or project_name.strip() == "":
         return False
-    if st.session_state.get("project_manager") in [None, "Select project manager"]:
+    if pm in [None, "Select project manager"]:
         return False
     return True
 
@@ -106,6 +171,45 @@ def is_section5_completed():
 
 
 # =====================================================
+# ESTILOS GENERALES
+# =====================================================
+st.markdown(
+    """
+    <style>
+    @import url('https://fonts.googleapis.com/css2?family=Oswald:wght@500;700&display=swap');
+
+    html, body, [data-testid="stAppViewContainer"] {
+        background-color: #FFFFFF !important;
+        color: #111111 !important;
+    }
+
+    .pgs-title {
+        font-family: 'Oswald', sans-serif;
+        font-size: 72px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+        color: #0F2B63;
+        width: 100%;
+        text-align: center;
+        margin-top: 20px;
+        margin-bottom: 10px;
+    }
+
+    h1, h2, h3, h4, h5, h6, p, label, span, div {
+        color: #111111;
+    }
+
+    [data-testid="stSidebar"] button {
+        font-size: 18px !important;
+        font-weight: 600 !important;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+
+# =====================================================
 # SIDEBAR NAVIGATION
 # =====================================================
 with st.sidebar:
@@ -118,7 +222,7 @@ with st.sidebar:
         ("3. Signage", is_section3_completed(), 3),
         ("4. Drawings", is_section4_completed(), 4),
         ("5. Server", is_section5_completed(), 5),
-        ("6. Generate Package", True, 6),
+        ("6. Generate Cover Page", True, 6),
     ]
 
     def button_type(p, done):
@@ -147,25 +251,29 @@ if st.session_state.page == 0:
 
     st.markdown("## Intro – General project information")
 
-    st.session_state.project_manager = st.selectbox(
+    st.selectbox(
         "Project manager",
         ["Select project manager", "PM1", "PM2"],
         key="project_manager"
     )
 
-    st.session_state.project_name = st.text_input(
+    st.text_input(
         "Project name (Required)",
         placeholder="Enter project name",
         key="project_name",
     )
     st.caption("**Please note the text entered in this field will appear exactly as written on the cover page.**")
 
-    # Date input
-    selected_date = st.date_input("Submittal date (optional)", value=date.today(), key="date_input")
+    # Date input (opcional, pero la guardamos formateada)
+    selected_date = st.date_input(
+        "Submittal date (optional)",
+        value=date.today(),
+        key="date_input"
+    )
     st.session_state.formatted_date = selected_date.strftime("%m-%d-%Y")
 
-    # Logo uploader
-    st.session_state.client_logo = st.file_uploader(
+    # Logo uploader (opcional)
+    st.file_uploader(
         "Upload client/project logo (optional — PNG preferred)",
         type=["png", "jpg", "jpeg"],
         key="client_logo"
@@ -182,40 +290,50 @@ if st.session_state.page == 0:
 elif st.session_state.page == 1:
     st.markdown("## 1. Covered spaces")
 
-    covered = st.radio(
+    st.radio(
         "Does this project include covered parking?",
         ["Yes", "No"],
         horizontal=True,
         key="covered"
     )
 
+    covered = st.session_state.get("covered")
+
     if covered == "Yes":
-        systems = st.multiselect(
+        st.multiselect(
             "Select systems",
             ["UMS", "Upsolut"],
             key="systems"
         )
 
+        systems = st.session_state.get("systems") or []
+
         if "UMS" in systems:
+            st.markdown("#### UMS")
             st.radio("LED type", ["Internal", "External"], horizontal=True, key="ums_led")
             st.radio("Installation type", ["C-channel", "Embedded", "Conduit"], key="ums_install")
 
-            if st.session_state.ums_install == "Embedded":
+            ums_install = st.session_state.get("ums_install")
+            if ums_install == "Embedded":
                 st.radio("Embedded installation type", ["Direct ceiling", "Suspended"], key="ums_embedded")
-            if st.session_state.ums_install == "Conduit":
+            if ums_install == "Conduit":
                 st.radio("Conduit installation type", ["Direct ceiling", "Suspended"], key="ums_conduit")
 
         if "Upsolut" in systems:
+            st.markdown("#### Upsolut")
             st.radio("LED type", ["Internal", "External"], horizontal=True, key="up_led")
             st.radio("Installation type", ["C-channel", "Embedded", "Conduit"], key="up_install")
 
-            if st.session_state.up_install == "Embedded":
+            up_install = st.session_state.get("up_install")
+            if up_install == "Embedded":
                 st.radio("Embedded installation type", ["Direct ceiling", "Suspended"], key="up_emb")
-            if st.session_state.up_install == "Conduit":
+            if up_install == "Conduit":
                 st.radio("Conduit installation type", ["Direct ceiling", "Suspended"], key="up_cond")
 
     elif covered == "No":
         st.info("No covered spaces selected. Please proceed to the next section.")
+    else:
+        st.caption("Please answer if the project includes covered parking.")
 
     st.markdown("---")
     col1, col2 = st.columns(2)
@@ -228,163 +346,164 @@ elif st.session_state.page == 1:
 
 
 # =====================================================
-# PAGE 2 — ROOFTOP
+# PAGE 2 — ROOFTOP / OPEN-AIR SOLUTIONS
 # =====================================================
 elif st.session_state.page == 2:
     st.markdown("## 2. Rooftop / open-air solutions")
 
-    open_air = st.radio(
+    st.radio(
         "Does this project include rooftop or open-air solutions?",
         ["Yes", "No"],
         horizontal=True,
         key="open_air",
     )
 
+    open_air = st.session_state.get("open_air")
+
     if open_air == "Yes":
         st.multiselect(
-            "Select sensors:",
+            "Select the sensors included:",
             ["11-X Pucks", "iVision", "Optex", "Views"],
             key="rooftop_sensors"
         )
     elif open_air == "No":
         st.info("No rooftop or open-air solutions selected. Please proceed to the next section.")
+    else:
+        st.caption("Please answer if the project includes rooftop or open-air solutions.")
 
     st.markdown("---")
-    if st.button("⬅ Back"):
-        go_to_page(1)
-    if st.button("Next ➜"):
-        go_to_page(3)
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("⬅ Back"):
+            go_to_page(1)
+    with col2:
+        if st.button("Next ➜"):
+            go_to_page(3)
 
 
 # =====================================================
 # PAGE 3 — SIGNAGE
 # =====================================================
 elif st.session_state.page == 3:
-
     st.markdown("## 3. Signage")
 
-    st.session_state.signage_included = st.radio(
+    st.radio(
         "Does this project include signage?",
         ["Yes", "No"],
         horizontal=True,
         key="signage_included"
     )
 
-    if st.session_state.signage_included == "Yes":
-        st.session_state.signage_types = st.multiselect(
-            "Select signage types:",
+    signage_included = st.session_state.get("signage_included")
+
+    if signage_included == "Yes":
+        st.multiselect(
+            "Select signage types included in this project:",
             ["Profile signs", "Matrix sign", "Monument sign"],
             key="signage_types"
         )
 
-        if "Profile signs" in st.session_state.signage_types:
-            st.session_state.profile_signs_file = st.file_uploader(
+        signage_types = st.session_state.get("signage_types") or []
+
+        if "Profile signs" in signage_types:
+            st.file_uploader(
                 "Upload signage design created using Indect Project Calculator",
-                type=["pdf", "png", "jpg"],
+                type=["pdf", "xlsx", "xls", "csv", "png", "jpg", "jpeg"],
                 key="profile_signs_file"
             )
+    elif signage_included == "No":
+        st.info("No signage selected. Please proceed to the next section.")
+    else:
+        st.caption("Please answer if the project includes signage.")
 
     st.markdown("---")
-    if st.button("⬅ Back"):
-        go_to_page(2)
-    if st.button("Next ➜"):
-        go_to_page(4)
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("⬅ Back"):
+            go_to_page(2)
+    with col2:
+        if st.button("Next ➜"):
+            go_to_page(4)
 
 
 # =====================================================
 # PAGE 4 — DRAWINGS
 # =====================================================
 elif st.session_state.page == 4:
-
     st.markdown("## 4. Drawings")
 
-    st.session_state.drawings_file = st.file_uploader(
-        "Upload most updated drawings",
-        type=["pdf", "dwg", "dxf", "zip"],
-        accept_multiple_files=True,
-        key="drawings_file"
+    st.file_uploader(
+        "Upload most updated drawings for the project",
+        type=["pdf", "dwg", "dxf", "zip", "rar"],
+        key="drawings_file",
+        accept_multiple_files=True
     )
 
     st.markdown("---")
-    if st.button("⬅ Back"):
-        go_to_page(3)
-    if st.button("Next ➜"):
-        go_to_page(5)
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("⬅ Back"):
+            go_to_page(3)
+    with col2:
+        if st.button("Next ➜"):
+            go_to_page(5)
 
 
 # =====================================================
-# PAGE 5 — SERVER
+# PAGE 5 — SERVER / NETWORK TOPOLOGY
 # =====================================================
 elif st.session_state.page == 5:
-
     st.markdown("## 5. Server")
 
-    st.session_state.server_topology_file = st.file_uploader(
-        "Upload specific network topology for this project",
-        type=["pdf", "png", "jpg", "vsdx", "zip"],
+    st.file_uploader(
+        "Upload specific network topology for this project created by IT team",
+        type=["pdf", "png", "jpg", "jpeg", "vsdx", "zip"],
         key="server_topology_file"
     )
 
     st.markdown("---")
-    if st.button("⬅ Back"):
-        go_to_page(4)
-    if st.button("Next ➜"):
-        go_to_page(6)
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("⬅ Back"):
+            go_to_page(4)
+    with col2:
+        if st.button("Next ➜"):
+            go_to_page(6)
 
 
 # =====================================================
 # PAGE 6 — GENERATE COVER PAGE (PDF)
 # =====================================================
 elif st.session_state.page == 6:
-
     st.markdown("## 6. Generate Cover Page")
 
-    st.write("This will generate the cover page using your template and inputs from the Intro Page.")
+    project_name = st.session_state.get("project_name", "")
+    date_str = st.session_state.get("formatted_date", "")
+    logo_file = st.session_state.get("client_logo", None)
 
-    # Button
-    if st.button("Generate Cover Page (PDF)"):
+    st.write(f"**Project name:** {project_name}")
+    st.write(f"**Date:** {date_str}")
+    if logo_file:
+        st.write("**Client logo uploaded:** ✅")
+    else:
+        st.write("**Client logo uploaded:** No logo (field left blank)")
 
-        # Load Template
-        doc = DocxTemplate(TEMPLATE_PATH)
+    st.markdown("---")
 
-        # Logo processing
-        logo_file = st.session_state.get("client_logo")
-        if logo_file:
-            logo_path = "temp_logo.png"
-            with open(logo_path, "wb") as f:
-                f.write(logo_file.getbuffer())
-            client_logo = InlineImage(doc, logo_path, width=Mm(30))
-        else:
-            client_logo = ""
-
-        context = {
-            "project_name": st.session_state.project_name,
-            "date": st.session_state.formatted_date,
-            "client_logo": client_logo
-        }
-
-        # Save docx
-        output_docx = "Generated_CoverPage.docx"
-        doc.render(context)
-        doc.save(output_docx)
-
-        # Convert to PDF
-        output_pdf = "Generated_CoverPage.pdf"
-        convert(output_docx, output_pdf)
+    if st.button("Generate Cover Page PDF"):
+        pdf_bytes = generate_cover_pdf(project_name, date_str, logo_file)
 
         st.success("Cover Page PDF generated successfully!")
 
-        # PDF preview
-        with open(output_pdf, "rb") as pdf_file:
-            st.download_button(
-                label="Download Cover Page (PDF)",
-                data=pdf_file,
-                file_name="CoverPage.pdf",
-                mime="application/pdf"
-            )
+        st.download_button(
+            label="Download Cover Page (PDF)",
+            data=pdf_bytes,
+            file_name="CoverPage.pdf",
+            mime="application/pdf"
+        )
 
-            st.write("### Cover Page Preview:")
-            st.pdf(output_pdf)
+        st.write("### Preview")
+        st.pdf(pdf_bytes)
 
     st.markdown("---")
     if st.button("⬅ Back"):
